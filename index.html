@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Джарвис</title>
+<style>
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: #071426;
+  color: white;
+  font-family: Arial, sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+main { padding: 24px; }
+h1 { color: #48baff; font-size: 36px; }
+p { line-height: 1.6; }
+button {
+  display: block;
+  margin: 12px auto;
+  padding: 14px 22px;
+  border: 0;
+  border-radius: 12px;
+  background: #087df5;
+  color: white;
+  font-size: 17px;
+}
+</style>
+</head>
+<body>
+<main>
+<h1>ДЖАРВИС</h1>
+<p>Твой голосовой помощник</p>
+<p id="status">Нажми кнопку, чтобы начать</p>
+<button onclick="startJarvis()">Включить микрофон</button>
+<button onclick="stopJarvis()">Остановить</button>
+<p id="answer">Скажи: «Джарвис, привет»</p>
+</main>
+<script>
+let recognition;
+let active = false;
+
+function speak(text) {
+  document.getElementById("answer").textContent = text;
+  speechSynthesis.cancel();
+  const msg = new SpeechSynthesisUtterance(text);
+  msg.lang = "ru-RU";
+  speechSynthesis.speak(msg);
+}
+
+function startJarvis() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    speak("Браузер не поддерживает распознавание речи. Попробуй Chrome или другой совместимый браузер.");
+    return;
+  }
+  recognition = new SR();
+  recognition.lang = "ru-RU";
+  recognition.continuous = true;
+  recognition.interimResults = false;
+  active = true;
+  recognition.onresult = function(event) {
+    const text = event.results[event.results.length - 1][0].transcript.toLowerCase();
+    document.getElementById("status").textContent = "Услышал: " + text;
+    if (!text.includes("джарвис")) return;
+    if (text.includes("привет")) {
+      speak("Привет, я Джарвис. Чем помочь?");
+    } else if (text.includes("ютуб") || text.includes("youtube")) {
+      speak("Открываю YouTube");
+      window.open("https://www.youtube.com/", "_blank");
+    } else if (text.includes("как дела")) {
+      speak("Отлично. Я готов помогать.");
+    } else {
+      speak("Я услышал тебя, но пока не знаю эту команду.");
+    }
+  };
+  recognition.onerror = function() {
+    document.getElementById("status").textContent = "Не удалось распознать речь. Проверь разрешение микрофона.";
+  };
+  recognition.onend = function() {
+    if (active) {
+      try { recognition.start(); } catch (e) {}
+    }
+  };
+  try {
+    recognition.start();
+    document.getElementById("status").textContent = "Микрофон включён";
+  } catch (e) {
+    speak("Не удалось включить микрофон.");
+  }
+}
+
+function stopJarvis() {
+  active = false;
+  if (recognition) recognition.stop();
+  speechSynthesis.cancel();
+  document.getElementById("status").textContent = "Остановлен";
+}
+</script>
+</body>
+</html>
