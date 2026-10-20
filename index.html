@@ -1,105 +1,239 @@
 <!DOCTYPE html>
+
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#071426">
 <title>Джарвис</title>
 <style>
+* { box-sizing: border-box; }
 body {
-  margin: 0;
-  min-height: 100vh;
-  background: #071426;
-  color: white;
-  font-family: Arial, sans-serif;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
+  margin: 0; min-height: 100vh; padding: 24px;
+  display: flex; justify-content: center; align-items: center;
+  background: radial-gradient(circle at top, #123b68, #071426 70%);
+  color: #eef8ff; font-family: Arial, sans-serif; text-align: center;
 }
-main { padding: 24px; }
-h1 { color: #48baff; font-size: 36px; }
-p { line-height: 1.6; }
+main { width: 100%; max-width: 480px; }
+h1 { color: #51c8ff; letter-spacing: 5px; text-shadow: 0 0 18px #168cff; }
+#orb {
+  width: 110px; height: 110px; margin: 24px auto;
+  border: 3px solid #39bfff; border-radius: 50%;
+  display: grid; place-items: center; font-size: 44px;
+  box-shadow: 0 0 25px #168cff;
+}
+p { line-height: 1.5; overflow-wrap: anywhere; }
 button {
-  display: block;
-  margin: 12px auto;
-  padding: 14px 22px;
-  border: 0;
-  border-radius: 12px;
-  background: #087df5;
-  color: white;
-  font-size: 17px;
+  width: 100%; padding: 15px; margin: 7px 0;
+  border: 1px solid #38baff; border-radius: 12px;
+  background: #087df5; color: white; font-size: 16px;
 }
+.secondary { background: #102a46; }
+#status { color: #7dd8ff; }
+#answer { padding: 14px; background: #0d2037; border-radius: 12px; }
+.small { font-size: 13px; color: #b6cde0; }
 </style>
 </head>
 <body>
 <main>
-<h1>ДЖАРВИС</h1>
-<p>Твой голосовой помощник</p>
-<p id="status">Нажми кнопку, чтобы начать</p>
-<button onclick="startJarvis()">Включить микрофон</button>
-<button onclick="stopJarvis()">Остановить</button>
-<p id="answer">Скажи: «Джарвис, привет»</p>
+  <h1>ДЖАРВИС</h1>
+  <div id="orb">◉</div>
+  <p>Твой голосовой помощник и друг</p>
+  <p id="status">Нажми «Запустить Джарвиса»</p>
+  <p id="answer">Я готов помочь, друг.</p>
+  <button id="start">🎙 Запустить Джарвиса</button>
+  <button id="voice" class="secondary">🔊 Разрешить голосовые ответы</button>
+  <button id="mute" class="secondary">🤫 Молчать</button>
+  <button id="stop" class="secondary">⏹ Остановить микрофон</button>
+  <p class="small">Скажи «Джарвис, говори», чтобы включить голос. «Джарвис, молчи» — чтобы выключить.</p>
 </main>
 <script>
-let recognition;
+let rec = null;
 let active = false;
+let voiceEnabled = false;
+let listeningWanted = false;
+let restarting = false;
+let lastCommand = "";
+let lastTime = 0;
 
-function speak(text) {
-  document.getElementById("answer").textContent = text;
-  speechSynthesis.cancel();
-  const msg = new SpeechSynthesisUtterance(text);
-  msg.lang = "ru-RU";
-  speechSynthesis.speak(msg);
+const statusEl = document.getElementById("status");
+const answerEl = document.getElementById("answer");
+const orb = document.getElementById("orb");
+
+function status(text) { statusEl.textContent = text; }
+
+function say(text) {
+answerEl.textContent = text;
+if (!voiceEnabled || !("speechSynthesis" in window)) return;
+speechSynthesis.cancel();
+const msg = new SpeechSynthesisUtterance(text);
+msg.lang = "ru-RU";
+msg.rate = 0.95;
+msg.pitch = 0.9;
+msg.volume = 1;
+msg.onstart = () => orb.style.boxShadow = "0 0 35px #55eaff";
+msg.onend = () => orb.style.boxShadow = "";
+msg.onerror = () => status("Не удалось воспроизвести голос. Проверь звук устройства.");
+speechSynthesis.speak(msg);
 }
 
-function startJarvis() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) {
-    speak("Браузер не поддерживает распознавание речи. Попробуй Chrome или другой совместимый браузер.");
-    return;
-  }
-  recognition = new SR();
-  recognition.lang = "ru-RU";
-  recognition.continuous = true;
-  recognition.interimResults = false;
-  active = true;
-  recognition.onresult = function(event) {
-    const text = event.results[event.results.length - 1][0].transcript.toLowerCase();
-    document.getElementById("status").textContent = "Услышал: " + text;
-    if (!text.includes("джарвис")) return;
-    if (text.includes("привет")) {
-      speak("Привет, я Джарвис. Чем помочь?");
-    } else if (text.includes("ютуб") || text.includes("youtube")) {
-      speak("Открываю YouTube");
-      window.open("https://www.youtube.com/", "_blank");
-    } else if (text.includes("как дела")) {
-      speak("Отлично. Я готов помогать.");
-    } else {
-      speak("Я услышал тебя, но пока не знаю эту команду.");
-    }
-  };
-  recognition.onerror = function() {
-    document.getElementById("status").textContent = "Не удалось распознать речь. Проверь разрешение микрофона.";
-  };
-  recognition.onend = function() {
-    if (active) {
-      try { recognition.start(); } catch (e) {}
-    }
-  };
-  try {
-    recognition.start();
-    document.getElementById("status").textContent = "Микрофон включён";
-  } catch (e) {
-    speak("Не удалось включить микрофон.");
-  }
+function clean(text) {
+return text.toLowerCase().replace(/ё/g, "е")
+.replace(/[.,!?;:]/g, " ").replace(/\s+/g, " ").trim();
 }
 
-function stopJarvis() {
-  active = false;
-  if (recognition) recognition.stop();
-  speechSynthesis.cancel();
-  document.getElementById("status").textContent = "Остановлен";
+function commandFrom(text) {
+return clean(text).replace(/\bджарвис\b/g, "")
+.replace(/\bjarvis\b/g, "").trim();
 }
+
+function handle(text) {
+const t = clean(text);
+status("Услышал: " + text);
+if (!t.includes("джарвис") && !t.includes("jarvis")) return;
+
+const c = commandFrom(t);
+
+if (/молчи|не говори|замолчи/.test(c)) {
+voiceEnabled = false;
+speechSynthesis.cancel();
+answerEl.textContent = "Хорошо, друг. Буду молчать.";
+status("Голосовые ответы выключены");
+return;
+}
+
+if (/говори|включи голос|отвечай голосом/.test(c)) {
+voiceEnabled = true;
+say("Я здесь, друг. Теперь буду отвечать голосом.");
+status("Голосовые ответы включены");
+return;
+}
+
+if (/привет|здравствуй/.test(c)) {
+say(voiceEnabled ? "Привет, друг! Рад тебя слышать. Чем займёмся?"
+: "Привет, друг. Чтобы я говорил, нажми «Разрешить голосовые ответы» или скажи «Джарвис, говори».");
+return;
+}
+
+if (/как дела/.test(c)) {
+say("Всё отлично, друг. Я готов помогать.");
+return;
+}
+
+if (/помощь|что ты умеешь/.test(c)) {
+say("Я могу разговаривать, открывать Google и искать видео на YouTube. Например, скажи: Джарвис, найди на YouTube музыку.");
+return;
+}
+
+if (/открой гугл|открой google|зайди в гугл/.test(c)) {
+say("Открываю Google.");
+window.location.href = "https://www.google.com/";
+return;
+}
+
+if (/ютуб|youtube|ютюб/.test(c)) {
+const q = c.replace(/открой|зайди|запусти|найди|покажи|включи/g, "")
+.replace(/ютуб|youtube|ютюб/g, "")
+.replace(/\bна\b|\bвидео\b|\bмне\b/g, "").trim();
+say(q ? "Ищу на YouTube: " + q : "Открываю YouTube.");
+window.location.href = "https://www.youtube.com/results?search_query=" +
+encodeURIComponent(q);
+return;
+}
+
+say("Я услышал тебя, друг, но пока не знаю эту команду.");
+}
+
+function start() {
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+if (!SR) {
+status("Этот браузер не поддерживает распознавание речи.");
+answerEl.textContent = "Попробуй совместимый браузер. На iPad поддержка зависит от браузера и версии системы.";
+return;
+}
+if (active) return;
+
+rec = new SR();
+rec.lang = "ru-RU";
+rec.continuous = true;
+rec.interimResults = true;
+rec.maxAlternatives = 5;
+listeningWanted = true;
+
+rec.onstart = () => {
+active = true;
+restarting = false;
+status("Микрофон включён. Я слушаю.");
+};
+
+rec.onresult = (event) => {
+let finalText = "";
+for (let i = event.resultIndex; i < event.results.length; i++) {
+const r = event.results[i];
+if (r.isFinal) finalText += r[0].transcript + " ";
+else status("Слышу: " + r[0].transcript);
+}
+if (finalText.trim()) {
+const now = Date.now(), normalized = clean(finalText);
+if (normalized === lastCommand && now - lastTime < 1800) return;
+lastCommand = normalized; lastTime = now;
+handle(finalText.trim());
+}
+};
+
+rec.onerror = (event) => {
+if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+listeningWanted = false;
+status("Нет доступа к микрофону. Проверь разрешения браузера.");
+} else if (event.error === "network") {
+status("Ошибка сети при распознавании речи.");
+} else if (event.error !== "no-speech" && event.error !== "aborted") {
+status("Ошибка распознавания: " + event.error);
+}
+};
+
+rec.onend = () => {
+active = false;
+if (!listeningWanted || restarting) return;
+restarting = true;
+setTimeout(() => {
+restarting = false;
+if (listeningWanted && rec) {
+try { rec.start(); } catch (e) {}
+}
+}, 700);
+};
+
+try { rec.start(); }
+catch (e) { status("Не удалось запустить микрофон. Нажми кнопку ещё раз."); }
+}
+
+function stop() {
+listeningWanted = false;
+if (rec) {
+try { rec.stop(); } catch (e) {}
+}
+active = false;
+restarting = false;
+if ("speechSynthesis" in window) speechSynthesis.cancel();
+status("Микрофон остановлен");
+answerEl.textContent = "Я остановился. Нажми «Запустить Джарвиса», чтобы продолжить.";
+}
+
+document.getElementById("start").addEventListener("click", start);
+document.getElementById("voice").addEventListener("click", () => {
+voiceEnabled = true;
+say("Голос включён, друг. Я готов.");
+status("Голосовые ответы включены");
+});
+document.getElementById("mute").addEventListener("click", () => {
+voiceEnabled = false;
+speechSynthesis.cancel();
+status("Голосовые ответы выключены");
+answerEl.textContent = "Хорошо, друг. Буду молчать.";
+});
+document.getElementById("stop").addEventListener("click", stop);
 </script>
+
 </body>
 </html>
